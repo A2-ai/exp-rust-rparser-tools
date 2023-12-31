@@ -1,6 +1,20 @@
+extern crate nom;
+
+use nom::{
+    branch::{alt},
+    bytes::complete::{tag, take_while1},
+    character::complete::multispace0,
+    character::complete::*,
+    combinator::{opt},
+    multi::many0,
+    IResult,
+    sequence::{tuple},
+};
 use debcontrol::parse_str;
 use debcontrol::{Field, Paragraph};
 
+const ABACUS_DESC: &str = "Package: ABACUS\nVersion: 1.0.0\nDepends: R (>= 3.1.0)\nImports: ggplot2 (>= 3.1.0), shiny (>= 1.3.1),\nSuggests: rmarkdown (>= 1.13), knitr (>= 1.22)\nLicense: GPL-3\nMD5sum: 50c54c4da09307cb95a70aaaa54b9fbd\nNeedsCompilation: no\n";
+ 
 const DPLYR_DESC: &str = r#"
 Type: Package
 Package: dplyr
@@ -122,8 +136,160 @@ fn get_field<'a>(paragraph: &'a Paragraph, name: &str) -> Field<'a> {
         value: "".to_string(),
     };
 }
+
+
+
+#[derive(Debug, PartialEq)]
+struct Constraint {
+    operator: String,
+    version: String,
+}
+
+#[derive(Debug, PartialEq)]
+struct Dependency {
+    name: String,
+    constraint: Option<Constraint>,
+}
+
+fn package_dependency(input: &str) -> IResult<&str, Dependency> {
+    let (input, (name, opt_constraint, _)) = tuple((
+        take_while1(|c: char| c.is_alphanumeric() || c == '.' || c == '-'),
+        opt(constraint),
+        multispace0,
+    ))(input)?;
+
+    Ok((
+        input,
+        Dependency {
+            name: name.trim().to_string(),
+            constraint: opt_constraint,
+        },
+    ))
+}
+
+
+fn constraint(input: &str) -> IResult<&str, Constraint> {
+    let (input, (_, _, _, constraint, _, version, _, _)) = tuple((
+        multispace0,
+        tag("("),
+        multispace0,
+        alt((tag(">="), tag("=="), tag(">"))),
+        //opt(line_ending),
+        multispace0,
+        take_while1(|c: char| c.is_numeric() || c == '.' || c == '-'),
+        multispace0,
+        tag(")"),
+    ))(input)?;
+    Ok((
+        input,
+        Constraint {
+            operator: constraint.to_string(),
+            version: version.to_string(),
+        },
+    ))
+}
+
+
+fn packages_list(input: &str) -> IResult<&str, Vec<Dependency>> {
+    let (input, leading_elements) =
+        many0(tuple((package_dependency, char(','), multispace0)))(input)?;
+    let leading_elements: Vec<_> = leading_elements
+        .into_iter()
+        .map(|(elem, _, _)| elem)
+        .collect();
+
+    if input.is_empty() {
+        return Ok((input, leading_elements));
+    } 
+    let mut all_elements = leading_elements;
+    let (input, last_element) = package_dependency(input)?;
+    dbg!("input: ", input);
+    all_elements.push(last_element);
+    Ok((input, all_elements))
+}
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_no_constraint() {
+        let pkg = "shiny";
+        let (_, parsed) = package_dependency(pkg).unwrap();
+
+        assert_eq!(parsed.name, "shiny");
+        assert_eq!(
+            parsed.constraint,
+            None 
+        );
+        // need as_ref because otherwise by the second call to imports will say has already been moved
+    }
+
+    #[test]
+    fn test_constraint_gte() {
+        let example1 = "R (>= 3.2.0)";
+        let (_, parsed) = package_dependency(example1).unwrap();
+
+        assert_eq!(parsed.name, "R");
+        assert_eq!(
+            parsed.constraint,
+            Some(Constraint {
+                operator: ">=".to_string(),
+                version: "3.2.0".to_string(),
+            })
+        );
+        // need as_ref because otherwise by the second call to imports will say has already been moved
+    }
+    #[test]
+    fn test_example_with_linebreak_after_constraint() {
+        // AFM version 2.0 Imports
+        //let example4 = "data.table(>= 1.9.6),stringr(>= 1.0.0),gstat(>=\n        1.0-26),fractaldim(>= 0.8-4),rgl(>= 0.96),pracma(>=\n        1.8.6)";
+        let example4 = "data.table(>= 1.9.6),stringr(>= 1.0.0),gstat(>=\n        1.0-26),fractaldim(>= 0.8-4),rgl(>= 0.96),pracma(>=\n        1.8.6)";
+        let (_, parsed) = packages_list(example4).unwrap();
+        println!("parsed: {:#?}", parsed);
+        assert_eq!(parsed.len(), 6);
+        assert_eq!(parsed[2].name, "gstat");
+        assert_eq!(
+            parsed[2].constraint,
+            Some(Constraint {
+                operator: ">=".to_string(),
+                version: "1.0-26".to_string(),
+            })
+        );
+    }
+
+    #[test]
+    fn test_trailing_comma() {
+        // from Package: ABACUS version 1.0.0 Imports
+        let trailing_comma_data = "ggplot2 (>= 3.1.0), shiny (>= 1.3.1),";
+        let (_, parsed) = packages_list(trailing_comma_data).unwrap();
+        assert_eq!(parsed.len(), 2);
+        assert_eq!(parsed[0].name, "ggplot2");
+        assert_eq!(
+            parsed[0].constraint,
+            Some(Constraint {
+                operator: ">=".to_string(),
+                version: "3.1.0".to_string(),
+            })
+        );
+        assert_eq!(parsed[1].name, "shiny");
+        assert_eq!(
+            parsed[1].constraint,
+            Some(Constraint {
+                operator: ">=".to_string(),
+                version: "1.3.1".to_string(),
+            })
+        );
+    }
+    
+}
+
+
+
+
 fn main() {
-    let paragraph = parse_str(DPLYR_DESC).unwrap().into_iter().nth(0).unwrap();
+    let paragraph = parse_str(ABACUS_DESC).unwrap().into_iter().nth(0).unwrap();
     println!("all fields: ");
     paragraph.fields.iter().for_each(|field| {
         println!("{}: {}", field.name, field.value);
@@ -159,5 +325,5 @@ fn main() {
     };
 
     println!("package: {}", desc.package);
-    println!("priority: {}", desc.priority);
+    println!("imports: {}", desc.imports);
 }
