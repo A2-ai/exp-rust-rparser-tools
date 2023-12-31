@@ -1,5 +1,6 @@
 extern crate nom;
-
+mod constraints;
+use constraints::VersionConstraint;
 use nom::{
     branch::{alt},
     bytes::complete::{tag, take_while1},
@@ -141,8 +142,8 @@ fn get_field<'a>(paragraph: &'a Paragraph, name: &str) -> Field<'a> {
 
 #[derive(Debug, PartialEq)]
 struct Constraint {
-    operator: String,
     version: String,
+    operator: Result<VersionConstraint, constraints::ParseError>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -183,7 +184,7 @@ fn constraint(input: &str) -> IResult<&str, Constraint> {
     Ok((
         input,
         Constraint {
-            operator: constraint.to_string(),
+            operator: constraint.parse::<VersionConstraint>(),
             version: version.to_string(),
         },
     ))
@@ -223,7 +224,6 @@ mod tests {
             parsed.constraint,
             None 
         );
-        // need as_ref because otherwise by the second call to imports will say has already been moved
     }
 
     #[test]
@@ -235,25 +235,39 @@ mod tests {
         assert_eq!(
             parsed.constraint,
             Some(Constraint {
-                operator: ">=".to_string(),
+                operator: Ok(VersionConstraint::GreaterThanEqual),
                 version: "3.2.0".to_string(),
             })
         );
-        // need as_ref because otherwise by the second call to imports will say has already been moved
     }
+    #[test]
+    fn test_constraint_gt() {
+        let example1 = "R (> 3.2.0)";
+        let (_, parsed) = package_dependency(example1).unwrap();
+
+        assert_eq!(parsed.name, "R");
+        assert_eq!(
+            parsed.constraint,
+            Some(Constraint {
+                operator: Ok(VersionConstraint::GreaterThan),
+                version: "3.2.0".to_string(),
+            })
+        );
+    }
+
     #[test]
     fn test_example_with_linebreak_after_constraint() {
         // AFM version 2.0 Imports
         //let example4 = "data.table(>= 1.9.6),stringr(>= 1.0.0),gstat(>=\n        1.0-26),fractaldim(>= 0.8-4),rgl(>= 0.96),pracma(>=\n        1.8.6)";
-        let example4 = "data.table(>= 1.9.6),stringr(>= 1.0.0),gstat(>=\n        1.0-26),fractaldim(>= 0.8-4),rgl(>= 0.96),pracma(>=\n        1.8.6)";
-        let (_, parsed) = packages_list(example4).unwrap();
+        let testdata = "data.table(>= 1.9.6),stringr(>= 1.0.0),gstat(>=\n        1.0-26),fractaldim(>= 0.8-4),rgl(>= 0.96),pracma(>=\n        1.8.6)";
+        let (_, parsed) = packages_list(testdata).unwrap();
         println!("parsed: {:#?}", parsed);
         assert_eq!(parsed.len(), 6);
         assert_eq!(parsed[2].name, "gstat");
         assert_eq!(
             parsed[2].constraint,
             Some(Constraint {
-                operator: ">=".to_string(),
+                operator: Ok(VersionConstraint::GreaterThanEqual),
                 version: "1.0-26".to_string(),
             })
         );
@@ -269,7 +283,7 @@ mod tests {
         assert_eq!(
             parsed[0].constraint,
             Some(Constraint {
-                operator: ">=".to_string(),
+                operator: Ok(VersionConstraint::GreaterThanEqual),
                 version: "3.1.0".to_string(),
             })
         );
@@ -277,7 +291,7 @@ mod tests {
         assert_eq!(
             parsed[1].constraint,
             Some(Constraint {
-                operator: ">=".to_string(),
+                operator: Ok(VersionConstraint::GreaterThanEqual),
                 version: "1.3.1".to_string(),
             })
         );
