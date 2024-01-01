@@ -1,6 +1,8 @@
 extern crate nom;
 mod constraints;
-use constraints::VersionConstraint;
+mod depedencies;
+use crate::depedencies::{Constraint, Dependency, package_dependency, packages_list};
+use crate::constraints::VersionConstraint;
 use nom::{
     branch::{alt},
     bytes::complete::{tag, take_while1},
@@ -138,79 +140,6 @@ fn get_field<'a>(paragraph: &'a Paragraph, name: &str) -> Field<'a> {
     };
 }
 
-
-
-#[derive(Debug, PartialEq)]
-struct Constraint {
-    version: String,
-    operator: Result<VersionConstraint, constraints::ParseError>,
-}
-
-#[derive(Debug, PartialEq)]
-struct Dependency {
-    name: String,
-    constraint: Option<Constraint>,
-}
-
-fn package_dependency(input: &str) -> IResult<&str, Dependency> {
-    let (input, (name, opt_constraint, _)) = tuple((
-        take_while1(|c: char| c.is_alphanumeric() || c == '.' || c == '-'),
-        opt(constraint),
-        multispace0,
-    ))(input)?;
-
-    Ok((
-        input,
-        Dependency {
-            name: name.trim().to_string(),
-            constraint: opt_constraint,
-        },
-    ))
-}
-
-
-fn constraint(input: &str) -> IResult<&str, Constraint> {
-    let (input, (_, _, _, constraint, _, version, _, _)) = tuple((
-        multispace0,
-        tag("("),
-        multispace0,
-        alt((tag(">="), tag("=="), tag(">"))),
-        //opt(line_ending),
-        multispace0,
-        take_while1(|c: char| c.is_numeric() || c == '.' || c == '-'),
-        multispace0,
-        tag(")"),
-    ))(input)?;
-    Ok((
-        input,
-        Constraint {
-            operator: constraint.parse::<VersionConstraint>(),
-            version: version.to_string(),
-        },
-    ))
-}
-
-
-fn packages_list(input: &str) -> IResult<&str, Vec<Dependency>> {
-    let (input, leading_elements) =
-        many0(tuple((package_dependency, char(','), multispace0)))(input)?;
-    let leading_elements: Vec<_> = leading_elements
-        .into_iter()
-        .map(|(elem, _, _)| elem)
-        .collect();
-
-    if input.is_empty() {
-        return Ok((input, leading_elements));
-    } 
-    let mut all_elements = leading_elements;
-    let (input, last_element) = package_dependency(input)?;
-    dbg!("input: ", input);
-    all_elements.push(last_element);
-    Ok((input, all_elements))
-}
-
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -261,7 +190,6 @@ mod tests {
         //let example4 = "data.table(>= 1.9.6),stringr(>= 1.0.0),gstat(>=\n        1.0-26),fractaldim(>= 0.8-4),rgl(>= 0.96),pracma(>=\n        1.8.6)";
         let testdata = "data.table(>= 1.9.6),stringr(>= 1.0.0),gstat(>=\n        1.0-26),fractaldim(>= 0.8-4),rgl(>= 0.96),pracma(>=\n        1.8.6)";
         let (_, parsed) = packages_list(testdata).unwrap();
-        println!("parsed: {:#?}", parsed);
         assert_eq!(parsed.len(), 6);
         assert_eq!(parsed[2].name, "gstat");
         assert_eq!(
