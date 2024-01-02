@@ -11,16 +11,32 @@ fn hello_world() -> &'static str {
 }
 // in the future consider https://josiahparry.com/posts/2023-11-24-dfusionrdr/#handling-arrow-rs-from-r
 
+#[derive(Debug, PartialEq, IntoDataFrameRow)]
+struct PackageDependency {
+    name: String,
+    constraint: String,
+}
+
 #[extendr]
 // @export
-fn parse_package_dependencies(package: &str, deps: &str) -> std::result::Result<List, String> {
-   let parsed_deps = packages_list(deps);
-   if parsed_deps.is_err() {
-      return Err("Error parsing dependencies".to_string());
-   }
-    let parsed_deps = parsed_deps.unwrap();
-   let dep_pkgs: Vec<String> = parsed_deps.iter().map(|dep| dep.name.clone() ).collect();
-   Ok(list!(name = package, deps = dep_pkgs ))
+fn parse_package_dependencies(package: &str, deps: &str) -> Robj {
+    let parsed_deps = packages_list(deps);
+    match parsed_deps {
+        Ok(parsed_deps) => {
+            let dep_pkgs: Vec<PackageDependency> = parsed_deps.iter().map(|dep| {
+                PackageDependency {
+                    name: dep.name.clone(),
+                    constraint: dep.constraint.as_ref()
+                                  .map_or_else(|| "".to_string(), |c| c.version.clone()),
+                }
+            }).collect();
+            match dep_pkgs.into_dataframe() {
+                Ok(dataframe) => dataframe.as_robj().clone(),
+                Err(err) => Robj::from(format!("Error converting to DataFrame: {}", err))
+            }
+        },
+        Err(_) => Robj::from("Error parsing dependencies")
+    }
 }
 // Macro to generate exports.
 // This ensures exported functions are registered with R.
