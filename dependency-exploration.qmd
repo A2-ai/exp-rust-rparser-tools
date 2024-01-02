@@ -1,0 +1,46 @@
+---
+title: "dependency tools"
+format: html
+---
+
+
+```{r}
+library(dplyr)
+library(purrr)
+```
+
+
+```{r}
+tools::package_dependencies("mrgsolve", which = "LinkingTo", recursive = TRUE)
+```
+
+```{r}
+tools::package_dependencies("BH", which = "LinkingTo", reverse = TRUE)
+```
+
+
+```{r}
+ip <- tibble::as_tibble(installed.packages())
+```
+
+
+```{r}
+?tools::check_packages_in_dir_changes
+```
+
+```{r}
+ip |> 
+  select(Package, Priority, Version, Depends, Imports, Suggests, LinkingTo, NeedsCompilation) |> 
+  filter(!is.na(Priority))
+```
+
+```{r}
+packageDescription("methods")
+```
+
+```{r}
+packageDescription("MASS")
+```
+
+
+
