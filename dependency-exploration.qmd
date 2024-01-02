@@ -41,6 +41,7 @@ packageDescription("methods")
 ```{r}
 packageDescription("MASS")
 ```
-
-
+```{r}
+packageDescription("dplyr")
+```
 

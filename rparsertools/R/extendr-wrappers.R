@@ -13,5 +13,7 @@ NULL
 
 parse_package_dependencies <- function(package, deps) .Call(wrap__parse_package_dependencies, package, deps)
 
+parse_all_package_dependencies <- function(packages, deps) .Call(wrap__parse_all_package_dependencies, packages, deps)
+
 
 # nolint end
