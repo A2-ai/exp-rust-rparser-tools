@@ -189,7 +189,7 @@ mod tests {
         // AFM version 2.0 Imports
         //let example4 = "data.table(>= 1.9.6),stringr(>= 1.0.0),gstat(>=\n        1.0-26),fractaldim(>= 0.8-4),rgl(>= 0.96),pracma(>=\n        1.8.6)";
         let testdata = "data.table(>= 1.9.6),stringr(>= 1.0.0),gstat(>=\n        1.0-26),fractaldim(>= 0.8-4),rgl(>= 0.96),pracma(>=\n        1.8.6)";
-        let (_, parsed) = packages_list(testdata).unwrap();
+        let parsed = packages_list(testdata).unwrap();
         assert_eq!(parsed.len(), 6);
         assert_eq!(parsed[2].name, "gstat");
         assert_eq!(
@@ -205,7 +205,7 @@ mod tests {
     fn test_trailing_comma() {
         // from Package: ABACUS version 1.0.0 Imports
         let trailing_comma_data = "ggplot2 (>= 3.1.0), shiny (>= 1.3.1),";
-        let (_, parsed) = packages_list(trailing_comma_data).unwrap();
+        let parsed = packages_list(trailing_comma_data).unwrap();
         assert_eq!(parsed.len(), 2);
         assert_eq!(parsed[0].name, "ggplot2");
         assert_eq!(

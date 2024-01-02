@@ -8,7 +8,6 @@ use nom::{
     IResult,
     sequence::{tuple},
 };
-
 use crate::constraints;
 
 #[derive(Debug, PartialEq)]
@@ -63,7 +62,7 @@ pub fn constraint(input: &str) -> IResult<&str, Constraint> {
 }
 
 
-pub fn packages_list(input: &str) -> IResult<&str, Vec<Dependency>> {
+pub fn packages_list(input: &str) -> Result<Vec<Dependency>, nom::Err<nom::error::Error<&str>>> {
     let (input, leading_elements) =
         many0(tuple((package_dependency, char(','), multispace0)))(input)?;
     let leading_elements: Vec<_> = leading_elements
@@ -72,11 +71,11 @@ pub fn packages_list(input: &str) -> IResult<&str, Vec<Dependency>> {
         .collect();
 
     if input.is_empty() {
-        return Ok((input, leading_elements));
+        return Ok(leading_elements);
     } 
     let mut all_elements = leading_elements;
     let (input, last_element) = package_dependency(input)?;
     all_elements.push(last_element);
-    Ok((input, all_elements))
+    Ok(all_elements)
 }
 
