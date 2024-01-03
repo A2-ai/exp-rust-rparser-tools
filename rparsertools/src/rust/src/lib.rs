@@ -4,12 +4,7 @@ use extendr_api::prelude::*;
 mod depedencies;
 mod constraints;
 use crate::depedencies::{packages_list};
-/// Return string `"Hello world!"` to R.
-/// @export
-#[extendr]
-fn hello_world() -> &'static str {
-    "Hello world!"
-}
+
 // in the future consider https://josiahparry.com/posts/2023-11-24-dfusionrdr/#handling-arrow-rs-from-r
 
 #[derive(Debug, PartialEq, IntoDataFrameRow)]
