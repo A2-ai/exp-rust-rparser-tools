@@ -1,7 +1,7 @@
 extern crate nom;
 mod constraints;
-mod depedencies;
-use crate::depedencies::{Constraint, Dependency, package_dependency, packages_list};
+mod dependencies;
+use crate::dependencies::{Constraint, Dependency, package_dependency, packages_list};
 use crate::constraints::VersionConstraint;
 use nom::{
     branch::{alt},

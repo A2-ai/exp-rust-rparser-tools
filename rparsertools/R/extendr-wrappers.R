@@ -6,14 +6,13 @@
 # This file was created with the following call:
 #   .Call("wrap__make_rparsertools_wrappers", use_symbols = TRUE, package_name = "rparsertools")
 
-#' @docType package
 #' @usage NULL
 #' @useDynLib rparsertools, .registration = TRUE
 NULL
 
-parse_package_dependencies <- function(package, deps) .Call(wrap__parse_package_dependencies, package, deps)
+parse_package_dependencies_impl <- function(package, deps) .Call(wrap__parse_package_dependencies_impl, package, deps)
 
-parse_all_package_dependencies <- function(packages, deps) .Call(wrap__parse_all_package_dependencies, packages, deps)
+parse_all_package_dependencies_impl <- function(packages, deps, filter_missing) .Call(wrap__parse_all_package_dependencies_impl, packages, deps, filter_missing)
 
 
 # nolint end

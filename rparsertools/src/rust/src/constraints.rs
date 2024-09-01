@@ -19,7 +19,10 @@ pub enum VersionConstraint {
     GreaterThanEqual, // >=
     Equal,            // ==
     GreaterThan,      // >
+    LessThan,         // <
+    LessThanEqual,    // <=
     None,             // ""
+    NotParseable,
 }
 
 impl std::str::FromStr for VersionConstraint {
@@ -31,6 +34,8 @@ impl std::str::FromStr for VersionConstraint {
             ">=" => Ok(VersionConstraint::GreaterThanEqual),
             "==" => Ok(VersionConstraint::Equal),
             ">" => Ok(VersionConstraint::GreaterThan),
+            "<" => Ok(VersionConstraint::LessThan),
+            "<=" => Ok(VersionConstraint::LessThanEqual),
             _ => Err(ParseError(vec![format!(
                 "Invalid version constraint: {}",
                 s
@@ -45,7 +50,12 @@ impl ToString for VersionConstraint {
             VersionConstraint::GreaterThanEqual => ">=".to_owned(),
             VersionConstraint::Equal => "==".to_owned(),
             VersionConstraint::GreaterThan => ">".to_owned(),
+            VersionConstraint::LessThan => "<".to_owned(),
+            VersionConstraint::LessThanEqual => "<=".to_owned(),
             VersionConstraint::None => "".to_owned(),
+            // TODO: this might break stuff,but not sure where this would hit
+            //  need to test with synthetically created bad constraint
+            VersionConstraint::NotParseable => "NA".to_owned(),
         }
     }
 }

@@ -10,14 +10,14 @@ use nom::{
 };
 use crate::constraints;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Constraint {
     pub version: String,
-    pub operator: Result<constraints::VersionConstraint, constraints::ParseError>,
+    pub operator: constraints::VersionConstraint,
 }
 
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Dependency {
     pub name: String,
     pub constraint: Option<Constraint>,
@@ -45,7 +45,7 @@ pub fn constraint(input: &str) -> IResult<&str, Constraint> {
         multispace0,
         tag("("),
         multispace0,
-        alt((tag(">="), tag("=="), tag(">"))),
+        alt((tag(">="), tag("=="), tag(">"), tag("<"), tag("<="))),
         //opt(line_ending),
         multispace0,
         take_while1(|c: char| c.is_numeric() || c == '.' || c == '-'),
@@ -55,7 +55,7 @@ pub fn constraint(input: &str) -> IResult<&str, Constraint> {
     Ok((
         input,
         Constraint {
-            operator: constraint.parse::<constraints::VersionConstraint>(),
+            operator: constraint.parse::<constraints::VersionConstraint>().unwrap_or(constraints::VersionConstraint::NotParseable),
             version: version.to_string(),
         },
     ))
